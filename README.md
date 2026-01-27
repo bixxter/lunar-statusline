@@ -1,11 +1,18 @@
-# Claude Statusline
+```
+██╗     ██╗   ██╗███╗   ██╗ █████╗ ██████╗
+██║     ██║   ██║████╗  ██║██╔══██╗██╔══██╗
+██║     ██║   ██║██╔██╗ ██║███████║██████╔╝
+██║     ██║   ██║██║╚██╗██║██╔══██║██╔══██╗
+███████╗╚██████╔╝██║ ╚████║██║  ██║██║  ██║
+╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝
+```
 
 A reactive, visual status line for Claude Code that shows what matters.
 
 ## What it shows
 
 ```
-🌱 main │ 📁 my-project │ Sonnet 4.5 │ 🌑🌘🌗 12k (45%) │ 🎧 in the zone
+🌱 main │ 📁 coolest-project │ Opus 4.5 │ 🌕🌑🌑 195k (37%) │ 🚀 zooming!
 ```
 
 - **Git status**: 🌱 clean / 🥀 uncommitted changes
@@ -52,13 +59,21 @@ The mascot adapts to your session:
 
 Rotates every ~10 seconds to stay fresh without being distracting.
 
-## Customization
+## Configuration Editor
 
-Edit `statusline.sh` to tweak:
-- Moon phase thresholds (lines 30-40)
-- Directory name length (line 10)
-- Mascot triggers (lines 88-132)
-- Colors and separators (lines 140-145)
+A TUI for customizing your statusline without editing files.
+
+![Editor main screen](demo_1.png)
+
+![Customization options](demo_2.png)
+
+```bash
+./lunar-editor-macos   # macOS
+./lunar-editor-linux   # Linux
+./lunar-editor.exe     # Windows
+```
+
+Configure sections, icons, mascot moods, and display settings.
 
 ---
 

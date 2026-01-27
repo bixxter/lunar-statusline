@@ -90,15 +90,14 @@ func (v *PreviewView) Render() string {
 
 	preview := strings.Join(parts, separator)
 
-	// Style the preview box
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#6B7280")).
+	// Style the preview without a border box for cleaner full-width display
+	previewStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF")).
 		Padding(0, 1)
 
 	labelStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#6B7280")).
 		Italic(true)
 
-	return labelStyle.Render("Preview:") + "\n" + boxStyle.Render(preview)
+	return labelStyle.Render("Preview:") + "\n" + previewStyle.Render(preview)
 }
