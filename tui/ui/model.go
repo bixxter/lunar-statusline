@@ -122,8 +122,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ConfirmQuit = false
 				return m, nil
 			case "s", "S":
-				// Save and quit
-				if err := config.Save(m.Config); err != nil {
+				// Save, install, and quit
+				if err := config.SaveAndInstall(m.Config); err != nil {
 					m.Error = err.Error()
 				} else {
 					m.Dirty = false
@@ -186,12 +186,21 @@ func (m Model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Screen = ScreenMascot
 		case 3:
 			m.Screen = ScreenDisplay
-		case 5: // Save & Exit (index 5 because of separator)
-			if err := config.Save(m.Config); err != nil {
-				m.Error = err.Error()
-			} else {
-				m.Dirty = false
+		case 5: // Save & Apply (index 5 because of separator)
+			if err := config.SaveAndInstall(m.Config); err != nil {
+				m.Error = "Save failed: " + err.Error()
+				return m, nil
 			}
+			m.Dirty = false
+			m.Error = ""
+			return m, tea.Quit
+		case 6: // Save Config Only
+			if err := config.Save(m.Config); err != nil {
+				m.Error = "Save failed: " + err.Error()
+				return m, nil
+			}
+			m.Dirty = false
+			m.Error = ""
 			return m, tea.Quit
 		}
 	case "q":
@@ -515,7 +524,7 @@ func (m Model) View() string {
 
 		dialog := titleStyle.Render("⚠ Unsaved Changes") + "\n\n"
 		dialog += "What would you like to do?\n\n"
-		dialog += lipgloss.NewStyle().Foreground(lipgloss.Color("#10B981")).Render("[s]") + " Save and quit\n"
+		dialog += lipgloss.NewStyle().Foreground(lipgloss.Color("#10B981")).Render("[s]") + " Save & apply globally\n"
 		dialog += lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444")).Render("[y]") + " Quit without saving\n"
 		dialog += lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render("[n]") + " Cancel"
 

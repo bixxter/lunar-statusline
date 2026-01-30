@@ -4,6 +4,7 @@
 # Configuration is read from ~/.claude/.statusline.config
 
 input=$(cat)
+echo "$input" >> /tmp/statusline-debug.json
 
 # === Load Config ===
 CONFIG_FILE="$HOME/.claude/.statusline.config"

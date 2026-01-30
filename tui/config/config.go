@@ -100,7 +100,7 @@ func DefaultConfig() *Config {
 			GitClean:  "✅",
 			GitDirty:  "⚠️",
 			Directory: "🗂️",
-			Moons:     []string{"●", "◐", "◑", "◕", "○"},
+			Moons:     []string{"🌑", "🌘", "🌗", "🌖", "🌕"},
 		},
 		Mascot: Mascot{
 			ContextPanic: MascotState{
