@@ -8,6 +8,7 @@ echo "$input" >> /tmp/statusline-debug.json
 
 # === Load Config ===
 CONFIG_FILE="$HOME/.claude/.statusline.config"
+STATE_FILE="$HOME/.claude/.statusline-state.json"
 
 # Helper function to read config values with defaults
 cfg() {
@@ -85,11 +86,62 @@ DIR_TRUNCATE=$(cfg '.thresholds.directory_truncate_to' '12')
 # === Read mascot settings ===
 MASCOT_PANIC_ENABLED=$(cfg_bool '.mascot.context_panic.enabled' 'true')
 MASCOT_PANIC_THRESHOLD=$(cfg '.mascot.context_panic.threshold' '90')
+MASCOT_PANIC_ANIMATE=$(cfg_bool '.mascot.context_panic.animate' 'false')
+MASCOT_PANIC_SPEED=$(cfg '.mascot.context_panic.speed' '500')
 MASCOT_PROD_ENABLED=$(cfg_bool '.mascot.productive.enabled' 'true')
 MASCOT_PROD_THRESHOLD=$(cfg '.mascot.productive.threshold' '100')
+MASCOT_PROD_ANIMATE=$(cfg_bool '.mascot.productive.animate' 'false')
+MASCOT_PROD_SPEED=$(cfg '.mascot.productive.speed' '500')
 MASCOT_DEL_ENABLED=$(cfg_bool '.mascot.deletion.enabled' 'true')
 MASCOT_DEL_THRESHOLD=$(cfg '.mascot.deletion.threshold' '30')
+MASCOT_DEL_ANIMATE=$(cfg_bool '.mascot.deletion.animate' 'false')
+MASCOT_DEL_SPEED=$(cfg '.mascot.deletion.speed' '500')
 MASCOT_TIME_ENABLED=$(cfg_bool '.mascot.time_based.enabled' 'true')
+MASCOT_TIME_ANIMATE=$(cfg_bool '.mascot.time_based.animate' 'false')
+MASCOT_TIME_SPEED=$(cfg '.mascot.time_based.speed' '500')
+
+# === Read waiting indicator settings ===
+SHOW_WAITING=$(cfg_bool '.enabled_sections.waiting_indicator' 'true')
+WAITING_ICON=$(cfg '.waiting_indicator.icon' '🔔')
+WAITING_TEXT=$(cfg '.waiting_indicator.text' 'WAITING')
+WAITING_BLINK=$(cfg_bool '.waiting_indicator.blink' 'true')
+WAITING_TIMEOUT=$(cfg '.waiting_indicator.timeout' '300')
+
+# === Check Waiting State ===
+WAITING_INFO=""
+if [ "$SHOW_WAITING" = "true" ] && [ -f "$STATE_FILE" ]; then
+    WAITING=$(jq -r '.waiting // false' "$STATE_FILE" 2>/dev/null)
+    if [ "$WAITING" = "true" ]; then
+        WAIT_TYPE=$(jq -r '.type // "input"' "$STATE_FILE" 2>/dev/null)
+        WAIT_TS=$(jq -r '.timestamp // 0' "$STATE_FILE" 2>/dev/null)
+        NOW=$(date +%s)
+        WAIT_SECS=$((NOW - WAIT_TS))
+
+        # Auto-clear stale waiting state (workaround for missing cancel hooks)
+        if [ "$WAIT_SECS" -gt "$WAITING_TIMEOUT" ]; then
+            rm -f "$STATE_FILE"
+        else
+            # Format wait time
+            if [ "$WAIT_SECS" -lt 60 ]; then
+                WAIT_TIME="${WAIT_SECS}s"
+            else
+                WAIT_TIME="$((WAIT_SECS / 60))m"
+            fi
+
+            # Blinking effect (alternates every second)
+            if [ "$WAITING_BLINK" = "true" ]; then
+                BLINK_STATE=$((NOW % 2))
+                if [ "$BLINK_STATE" -eq 0 ]; then
+                    WAITING_INFO="\033[1;33;5m${WAITING_ICON} ${WAITING_TEXT} (${WAIT_TIME})\033[0m"
+                else
+                    WAITING_INFO="\033[1;33m${WAITING_ICON} ${WAITING_TEXT} (${WAIT_TIME})\033[0m"
+                fi
+            else
+                WAITING_INFO="\033[1;33m${WAITING_ICON} ${WAITING_TEXT} (${WAIT_TIME})\033[0m"
+            fi
+        fi
+    fi
+fi
 
 # === Directory Info ===
 DIR_INFO=""
@@ -194,22 +246,43 @@ if [ "$SHOW_MASCOT" = "true" ]; then
     LINES_ADDED=$(echo "$input" | jq -r '.cost.total_lines_added // 0')
     LINES_REMOVED=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
 
-    get_mascot() {
-        # Random factor for variety (changes every ~10 seconds)
-        RANDOM_SEED=$(($(date +%s) / 10))
+    # Helper to get animation frame index based on speed (in ms)
+    get_anim_frame() {
+        local count=$1
+        local speed=$2
+        local animate=$3
 
+        if [ "$animate" = "true" ] && [ "$count" -gt 0 ]; then
+            # Use milliseconds for smooth animation
+            local ms
+            if command -v gdate &> /dev/null; then
+                ms=$(gdate +%s%3N)
+            else
+                # macOS date doesn't support %3N, use seconds * 1000 as fallback
+                ms=$(($(date +%s) * 1000))
+            fi
+            # Calculate frame based on time and speed
+            echo $(( (ms / speed) % count ))
+        else
+            # Non-animated: change every ~10 seconds
+            echo $(( ($(date +%s) / 10) % count ))
+        fi
+    }
+
+    get_mascot() {
         # Context panic mode
         if [ "$MASCOT_PANIC_ENABLED" = "true" ] && [ "$PERCENT" -gt "$MASCOT_PANIC_THRESHOLD" ]; then
-            # Get emojis from config
             PANIC_COUNT=$(jq -r '.mascot.context_panic.emojis | length' "$CONFIG_FILE" 2>/dev/null)
             if [ -n "$PANIC_COUNT" ] && [ "$PANIC_COUNT" -gt 0 ]; then
-                IDX=$((RANDOM_SEED % PANIC_COUNT))
+                IDX=$(get_anim_frame "$PANIC_COUNT" "$MASCOT_PANIC_SPEED" "$MASCOT_PANIC_ANIMATE")
                 jq -r ".mascot.context_panic.emojis[$IDX]" "$CONFIG_FILE" 2>/dev/null
             else
-                case $((RANDOM_SEED % 3)) in
-                    0) echo "🫠 melting..." ;;
-                    1) echo "😰 tight fit!" ;;
-                    2) echo "🔥 toasty!" ;;
+                IDX=$(get_anim_frame 4 500 "true")
+                case $IDX in
+                    0) echo "😰" ;;
+                    1) echo "😱" ;;
+                    2) echo "🆘" ;;
+                    3) echo "😱" ;;
                 esac
             fi
             return
@@ -219,14 +292,15 @@ if [ "$SHOW_MASCOT" = "true" ]; then
         if [ "$MASCOT_PROD_ENABLED" = "true" ] && [ "$LINES_ADDED" -gt "$MASCOT_PROD_THRESHOLD" ]; then
             PROD_COUNT=$(jq -r '.mascot.productive.emojis | length' "$CONFIG_FILE" 2>/dev/null)
             if [ -n "$PROD_COUNT" ] && [ "$PROD_COUNT" -gt 0 ]; then
-                IDX=$((RANDOM_SEED % PROD_COUNT))
+                IDX=$(get_anim_frame "$PROD_COUNT" "$MASCOT_PROD_SPEED" "$MASCOT_PROD_ANIMATE")
                 jq -r ".mascot.productive.emojis[$IDX]" "$CONFIG_FILE" 2>/dev/null
             else
-                case $((RANDOM_SEED % 4)) in
-                    0) echo "🚀 zooming!" ;;
-                    1) echo "⚡ on fire!" ;;
-                    2) echo "💪 crushing it" ;;
-                    3) echo "🎯 locked in" ;;
+                IDX=$(get_anim_frame 4 400 "true")
+                case $IDX in
+                    0) echo "🔨" ;;
+                    1) echo "⚒️" ;;
+                    2) echo "🛠️" ;;
+                    3) echo "⚒️" ;;
                 esac
             fi
             return
@@ -236,13 +310,15 @@ if [ "$SHOW_MASCOT" = "true" ]; then
         if [ "$MASCOT_DEL_ENABLED" = "true" ] && [ "$LINES_REMOVED" -gt "$LINES_ADDED" ] && [ "$LINES_REMOVED" -gt "$MASCOT_DEL_THRESHOLD" ]; then
             DEL_COUNT=$(jq -r '.mascot.deletion.emojis | length' "$CONFIG_FILE" 2>/dev/null)
             if [ -n "$DEL_COUNT" ] && [ "$DEL_COUNT" -gt 0 ]; then
-                IDX=$((RANDOM_SEED % DEL_COUNT))
+                IDX=$(get_anim_frame "$DEL_COUNT" "$MASCOT_DEL_SPEED" "$MASCOT_DEL_ANIMATE")
                 jq -r ".mascot.deletion.emojis[$IDX]" "$CONFIG_FILE" 2>/dev/null
             else
-                case $((RANDOM_SEED % 3)) in
-                    0) echo "🧹 cleaning!" ;;
-                    1) echo "✂️ snip snip" ;;
-                    2) echo "🗑️ declutter" ;;
+                IDX=$(get_anim_frame 4 350 "true")
+                case $IDX in
+                    0) echo "🧹" ;;
+                    1) echo "✨" ;;
+                    2) echo "🗑️" ;;
+                    3) echo "✨" ;;
                 esac
             fi
             return
@@ -263,19 +339,24 @@ if [ "$SHOW_MASCOT" = "true" ]; then
 
             TIME_COUNT=$(jq -r ".mascot.time_based.$TIME_KEY | length" "$CONFIG_FILE" 2>/dev/null)
             if [ -n "$TIME_COUNT" ] && [ "$TIME_COUNT" -gt 0 ]; then
-                IDX=$((RANDOM_SEED % TIME_COUNT))
+                IDX=$(get_anim_frame "$TIME_COUNT" "$MASCOT_TIME_SPEED" "$MASCOT_TIME_ANIMATE")
                 jq -r ".mascot.time_based.${TIME_KEY}[$IDX]" "$CONFIG_FILE" 2>/dev/null
             else
-                # Fallback defaults
+                # Fallback defaults with animation
+                IDX=$(get_anim_frame 4 600 "true")
                 case $TIME_KEY in
-                    night) echo "🦉 night owl" ;;
-                    morning) echo "🌅 fresh start" ;;
-                    afternoon) echo "🎧 in the zone" ;;
-                    evening) echo "🌆 evening mode" ;;
+                    night)
+                        case $IDX in 0) echo "🦉" ;; 1) echo "💤" ;; 2) echo "🌙" ;; 3) echo "💤" ;; esac ;;
+                    morning)
+                        case $IDX in 0) echo "☀️" ;; 1) echo "🌅" ;; 2) echo "☕" ;; 3) echo "🌅" ;; esac ;;
+                    afternoon)
+                        case $IDX in 0) echo "💻" ;; 1) echo "⌨️" ;; 2) echo "🖱️" ;; 3) echo "⌨️" ;; esac ;;
+                    evening)
+                        case $IDX in 0) echo "🌆" ;; 1) echo "🌇" ;; 2) echo "🌃" ;; 3) echo "🌇" ;; esac ;;
                 esac
             fi
         else
-            echo "🤖 working"
+            echo "🤖"
         fi
     }
 
@@ -285,6 +366,8 @@ fi
 # === Compose Status Line ===
 # Build parts array
 PARTS=()
+# Waiting indicator comes first (highest priority)
+[ -n "$WAITING_INFO" ] && PARTS+=("$WAITING_INFO")
 [ -n "$GIT_INFO" ] && PARTS+=("$GIT_INFO")
 [ -n "$DIR_INFO" ] && PARTS+=("$DIR_INFO")
 [ -n "$MODEL_INFO" ] && PARTS+=("$MODEL_INFO")

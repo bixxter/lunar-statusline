@@ -20,6 +20,7 @@ const (
 	ScreenIcons
 	ScreenMascot
 	ScreenDisplay
+	ScreenNotifications
 	ScreenConfirmQuit
 )
 
@@ -70,12 +71,13 @@ type Model struct {
 	ConfirmQuit bool
 
 	// Views
-	MenuView     *views.MenuView
-	SectionsView *views.SectionsView
-	IconsView    *views.IconsView
-	MascotView   *views.MascotView
-	DisplayView  *views.DisplayView
-	PreviewView  *views.PreviewView
+	MenuView          *views.MenuView
+	SectionsView      *views.SectionsView
+	IconsView         *views.IconsView
+	MascotView        *views.MascotView
+	DisplayView       *views.DisplayView
+	NotificationsView *views.NotificationsView
+	PreviewView       *views.PreviewView
 }
 
 // NewModel creates a new model
@@ -84,18 +86,19 @@ func NewModel(cfg *config.Config) Model {
 	origCfg := *cfg
 
 	return Model{
-		Config:       cfg,
-		OrigConfig:   &origCfg,
-		Screen:       ScreenMenu,
-		Keys:         DefaultKeyMap(),
-		Width:        80,
-		Height:       24,
-		MenuView:     views.NewMenuView(),
-		SectionsView: views.NewSectionsView(cfg),
-		IconsView:    views.NewIconsView(cfg),
-		MascotView:   views.NewMascotView(cfg),
-		DisplayView:  views.NewDisplayView(cfg),
-		PreviewView:  views.NewPreviewView(cfg),
+		Config:            cfg,
+		OrigConfig:        &origCfg,
+		Screen:            ScreenMenu,
+		Keys:              DefaultKeyMap(),
+		Width:             80,
+		Height:            24,
+		MenuView:          views.NewMenuView(),
+		SectionsView:      views.NewSectionsView(cfg),
+		IconsView:         views.NewIconsView(cfg),
+		MascotView:        views.NewMascotView(cfg),
+		DisplayView:       views.NewDisplayView(cfg),
+		NotificationsView: views.NewNotificationsView(cfg),
+		PreviewView:       views.NewPreviewView(cfg),
 	}
 }
 
@@ -163,6 +166,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMascot(msg)
 		case ScreenDisplay:
 			return m.updateDisplay(msg)
+		case ScreenNotifications:
+			return m.updateNotifications(msg)
 		}
 	}
 
@@ -186,7 +191,9 @@ func (m Model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Screen = ScreenMascot
 		case 3:
 			m.Screen = ScreenDisplay
-		case 5: // Save & Apply (index 5 because of separator)
+		case 4:
+			m.Screen = ScreenNotifications
+		case 6: // Save & Apply (index 6 because of separator)
 			if err := config.SaveAndInstall(m.Config); err != nil {
 				m.Error = "Save failed: " + err.Error()
 				return m, nil
@@ -194,7 +201,7 @@ func (m Model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Dirty = false
 			m.Error = ""
 			return m, tea.Quit
-		case 6: // Save Config Only
+		case 7: // Save Config Only
 			if err := config.Save(m.Config); err != nil {
 				m.Error = "Save failed: " + err.Error()
 				return m, nil
@@ -345,6 +352,73 @@ func (m Model) updateDisplay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.DisplayView.StartEdit()
 	case "esc", "q":
 		m.Screen = ScreenMenu
+	}
+	return m, nil
+}
+
+func (m Model) updateNotifications(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle text input editing
+	if m.NotificationsView.EditingThreshold || m.NotificationsView.EditingTitle {
+		switch msg.String() {
+		case "enter":
+			m.NotificationsView.Enter()
+			m.Dirty = true
+			return m, nil
+		case "esc":
+			m.NotificationsView.Back()
+			return m, nil
+		default:
+			// Forward to text input
+			input := m.NotificationsView.CurrentInput()
+			if input != nil {
+				var cmd tea.Cmd
+				*input, cmd = input.Update(msg)
+				return m, cmd
+			}
+		}
+		return m, nil
+	}
+
+	// Handle sound selection
+	if m.NotificationsView.SelectingSound {
+		switch msg.String() {
+		case "up", "k":
+			m.NotificationsView.Up()
+		case "down", "j":
+			m.NotificationsView.Down()
+		case "enter":
+			m.NotificationsView.Enter()
+			m.Dirty = true
+		case "p":
+			m.NotificationsView.PlaySelectedSound()
+		case "esc", "q":
+			m.NotificationsView.Back()
+		}
+		return m, nil
+	}
+
+	switch msg.String() {
+	case "up", "k":
+		m.NotificationsView.Up()
+	case "down", "j":
+		m.NotificationsView.Down()
+	case "enter":
+		m.NotificationsView.Enter()
+		m.Dirty = true
+	case " ", "x":
+		if !m.NotificationsView.InCategory {
+			// Toggle enabled on category
+			cat := &m.NotificationsView.Categories[m.NotificationsView.Selected]
+			*cat.Enabled = !*cat.Enabled
+			m.Dirty = true
+		} else {
+			m.NotificationsView.Enter()
+			m.Dirty = true
+		}
+	case "esc", "q":
+		if m.NotificationsView.Back() {
+			m.Screen = ScreenMenu
+		}
 	}
 	return m, nil
 }
@@ -548,6 +622,8 @@ func (m Model) View() string {
 			screenContent = m.MascotView.Render()
 		case ScreenDisplay:
 			screenContent = m.DisplayView.Render()
+		case ScreenNotifications:
+			screenContent = m.NotificationsView.Render()
 		}
 
 		contentBox := contentBoxStyle.Render(screenContent)

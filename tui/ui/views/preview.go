@@ -73,14 +73,19 @@ func (v *PreviewView) Render() string {
 
 	// Mascot
 	if cfg.EnabledSections.Mascot {
-		// Pick a sample mascot emoji
-		var mascotEmoji string
+		// Show animation frames if enabled, otherwise first emoji
+		var mascotDisplay string
 		if cfg.Mascot.TimeBased.Enabled && len(cfg.Mascot.TimeBased.Afternoon) > 0 {
-			mascotEmoji = cfg.Mascot.TimeBased.Afternoon[0]
+			if cfg.Mascot.TimeBased.Animate && len(cfg.Mascot.TimeBased.Afternoon) > 1 {
+				// Show animation sequence preview
+				mascotDisplay = strings.Join(cfg.Mascot.TimeBased.Afternoon, "→")
+			} else {
+				mascotDisplay = cfg.Mascot.TimeBased.Afternoon[0]
+			}
 		} else {
-			mascotEmoji = "🎧 in the zone"
+			mascotDisplay = "💻→⌨️→🖱️→⌨️"
 		}
-		parts = append(parts, mascotEmoji)
+		parts = append(parts, mascotDisplay)
 	}
 
 	separator := cfg.Display.Separator

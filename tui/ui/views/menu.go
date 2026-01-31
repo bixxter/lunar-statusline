@@ -28,6 +28,7 @@ func NewMenuView() *MenuView {
 			{Label: "Icons & Emojis", Description: "Customize icons and emojis"},
 			{Label: "Mascot Settings", Description: "Configure mascot moods and triggers"},
 			{Label: "Display Options", Description: "Separator and formatting settings"},
+			{Label: "Notifications", Description: "Configure alerts, sounds, and notification triggers"},
 			{IsSeparator: true},
 			{Label: "Save & Apply", Description: "Save config and install statusline to ~/.claude/"},
 			{Label: "Save Config Only", Description: "Save config without installing globally"},

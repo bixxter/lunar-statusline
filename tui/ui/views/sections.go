@@ -27,6 +27,7 @@ func NewSectionsView(cfg *config.Config) *SectionsView {
 	return &SectionsView{
 		Config: cfg,
 		Items: []SectionItem{
+			{Key: "waiting_indicator", Label: "Waiting Indicator", Description: "Show alert when Claude needs your input", Enabled: &cfg.EnabledSections.WaitingIndicator},
 			{Key: "git", Label: "Git Branch", Description: "Show current git branch and status", Enabled: &cfg.EnabledSections.Git},
 			{Key: "directory", Label: "Directory", Description: "Show current directory name", Enabled: &cfg.EnabledSections.Directory},
 			{Key: "model", Label: "Model Name", Description: "Show Claude model in use", Enabled: &cfg.EnabledSections.Model},
@@ -42,13 +43,14 @@ func NewSectionsView(cfg *config.Config) *SectionsView {
 // UpdateConfig refreshes the view with new config
 func (s *SectionsView) UpdateConfig(cfg *config.Config) {
 	s.Config = cfg
-	s.Items[0].Enabled = &cfg.EnabledSections.Git
-	s.Items[1].Enabled = &cfg.EnabledSections.Directory
-	s.Items[2].Enabled = &cfg.EnabledSections.Model
-	s.Items[3].Enabled = &cfg.EnabledSections.ContextMoons
-	s.Items[4].Enabled = &cfg.EnabledSections.TokenCount
-	s.Items[5].Enabled = &cfg.EnabledSections.Percentage
-	s.Items[6].Enabled = &cfg.EnabledSections.Mascot
+	s.Items[0].Enabled = &cfg.EnabledSections.WaitingIndicator
+	s.Items[1].Enabled = &cfg.EnabledSections.Git
+	s.Items[2].Enabled = &cfg.EnabledSections.Directory
+	s.Items[3].Enabled = &cfg.EnabledSections.Model
+	s.Items[4].Enabled = &cfg.EnabledSections.ContextMoons
+	s.Items[5].Enabled = &cfg.EnabledSections.TokenCount
+	s.Items[6].Enabled = &cfg.EnabledSections.Percentage
+	s.Items[7].Enabled = &cfg.EnabledSections.Mascot
 }
 
 // Up moves selection up

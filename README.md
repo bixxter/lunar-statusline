@@ -12,9 +12,10 @@ A reactive, visual status line for Claude Code that shows what matters.
 ## What it shows
 
 ```
-🌱 main │ 📁 coolest-project │ Opus 4.5 │ 🌕🌑🌑 195k (37%) │ 🚀 zooming!
+🔔 WAITING (2m) │ 🌱 main │ 📁 coolest-project │ Opus 4.5 │ 🌕🌑🌑 195k (37%) │ 🚀 zooming!
 ```
 
+- **Waiting indicator**: Alert when Claude needs your input (permission, question, etc.)
 - **Git status**: 🌱 clean / 🥀 uncommitted changes
 - **Current directory**: Compact folder name
 - **Model**: Which Claude you're talking to
@@ -22,6 +23,20 @@ A reactive, visual status line for Claude Code that shows what matters.
 - **Reactive mascot**: Changes based on activity, time of day, and context pressure
 
 ## Install
+
+### Quick Install
+
+```bash
+# Install statusline + hooks for waiting indicator
+./install-hooks.sh
+```
+
+This installs:
+- The statusline script to `~/.claude/statusline.sh`
+- Hooks that detect when Claude is waiting for your input
+- Configuration to `~/.claude/settings.json`
+
+### Manual Install
 
 1. Copy `statusline.sh` to your Claude config directory:
 ```bash
@@ -40,13 +55,55 @@ chmod +x ~/.claude/statusline.sh
 }
 ```
 
-3. Restart Claude Code
+3. (Optional) Install hooks for waiting indicator:
+```bash
+./install-hooks.sh
+```
+
+4. Restart Claude Code
 
 ## Requirements
 
 - `jq` for JSON parsing: `brew install jq` (macOS) or `apt install jq` (Linux)
 - `bc` for math (usually pre-installed)
 - Git (optional, for branch display)
+
+## Waiting Indicator
+
+Never miss when Claude needs your attention. The statusline shows a prominent alert when:
+
+- Claude asks a question (AskUserQuestion)
+- A permission prompt appears ("Allow Claude to run...?")
+- Any dialog requiring user input
+
+The indicator shows how long Claude has been waiting:
+```
+🔔 WAITING (2m) │ ...rest of status...
+```
+
+**How it works**: Uses Claude Code hooks to detect waiting states and writes to a state file that the statusline reads.
+
+**Customize** in `~/.claude/.statusline.config`:
+```json
+{
+  "waiting_indicator": {
+    "icon": "🔔",
+    "text": "WAITING",
+    "blink": true
+  },
+  "notifications": {
+    "enabled": true,
+    "terminal_bell": true,
+    "system_notification": true,
+    "sound": true
+  }
+}
+```
+
+**Notification options:**
+- `terminal_bell` - Classic `\a` bell (works in most terminals)
+- `system_notification` - Native OS notification (macOS/Linux)
+- `sound` - Play a sound (macOS only, uses system Ping sound)
 
 ## Mascot moods
 
