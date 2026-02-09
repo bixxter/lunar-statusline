@@ -59,6 +59,8 @@ if [ "$ALREADY_WAITING" = "false" ]; then
     NOTIFY_SOUND_PATH=$(jq -r '.notifications.desktop.sound_path // ""' "$CONFIG_FILE" 2>/dev/null)
     NOTIFY_SOUND_VOLUME=$(jq -r '.notifications.desktop.sound_volume // 1' "$CONFIG_FILE" 2>/dev/null)
     NOTIFY_TITLE=$(jq -r '.notifications.desktop.title // "Claude needs attention"' "$CONFIG_FILE" 2>/dev/null)
+    NOTIFY_TERMINAL_TITLE=$(jq -r '.notifications.terminal_title.enabled // false' "$CONFIG_FILE" 2>/dev/null)
+    NOTIFY_TERMINAL_TITLE_TEXT=$(jq -r '.notifications.terminal_title.waiting_text // "⚠️ WAITING - Claude needs input"' "$CONFIG_FILE" 2>/dev/null)
 
     # Terminal bell
     if [ "$NOTIFY_BELL" = "true" ]; then
@@ -87,6 +89,12 @@ if [ "$ALREADY_WAITING" = "false" ]; then
                 afplay -v "$NOTIFY_SOUND_VOLUME" /System/Library/Sounds/Tink.aiff 2>/dev/null &
             fi
         fi
+    fi
+
+    # Terminal title
+    if [ "$NOTIFY_TERMINAL_TITLE" = "true" ]; then
+        # Set terminal title using escape sequence (works in most terminals)
+        printf '\033]0;%s\007' "$NOTIFY_TERMINAL_TITLE_TEXT" > /dev/tty 2>/dev/null || true
     fi
 fi
 

@@ -24,17 +24,29 @@ A reactive, visual status line for Claude Code that shows what matters.
 
 ## Install
 
+### Requirements
+
+- `jq` for JSON parsing (the installer will check for this)
+  - macOS: `brew install jq`
+  - Ubuntu/Debian: `sudo apt install jq`
+  - Arch: `sudo pacman -S jq`
+- `bc` for math (usually pre-installed)
+- Git (optional, for branch display)
+
 ### Quick Install
 
 ```bash
-# Install statusline + hooks for waiting indicator
+git clone https://github.com/anthropics/claude-statusline.git ~/.claude/claude-statusline
+cd ~/.claude/claude-statusline
 ./install-hooks.sh
 ```
 
-This installs:
-- The statusline script to `~/.claude/statusline.sh`
-- Hooks that detect when Claude is waiting for your input
-- Configuration to `~/.claude/settings.json`
+This will:
+- Copy `statusline.sh` to `~/.claude/statusline.sh`
+- Copy hook scripts to `~/.claude/hooks/`
+- Add `statusLine` and `hooks` entries to `~/.claude/settings.json` (safely merges with existing config)
+
+Running the installer again is safe — it will update hooks without creating duplicates.
 
 ### Manual Install
 
@@ -44,29 +56,45 @@ cp statusline.sh ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 ```
 
-2. Add to your `~/.claude/settings.json`:
+2. Copy hook scripts:
+```bash
+mkdir -p ~/.claude/hooks
+cp hooks/set-waiting.sh hooks/clear-waiting.sh ~/.claude/hooks/
+chmod +x ~/.claude/hooks/set-waiting.sh ~/.claude/hooks/clear-waiting.sh
+```
+
+3. Add to your `~/.claude/settings.json`:
 ```json
 {
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
     "padding": 0
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "idle_prompt|permission_prompt|elicitation_dialog",
+        "hooks": [{ "type": "command", "command": "~/.claude/hooks/set-waiting.sh" }]
+      }
+    ],
+    "PermissionRequest": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/set-waiting.sh" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] }
+    ],
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] }
+    ]
   }
 }
 ```
 
-3. (Optional) Install hooks for waiting indicator:
-```bash
-./install-hooks.sh
-```
-
 4. Restart Claude Code
-
-## Requirements
-
-- `jq` for JSON parsing: `brew install jq` (macOS) or `apt install jq` (Linux)
-- `bc` for math (usually pre-installed)
-- Git (optional, for branch display)
 
 ## Waiting Indicator
 
@@ -92,29 +120,38 @@ The indicator shows how long Claude has been waiting:
     "blink": true
   },
   "notifications": {
-    "enabled": true,
-    "terminal_bell": true,
-    "system_notification": true,
-    "sound": true
+    "terminal_bell": {
+      "enabled": true
+    },
+    "desktop": {
+      "enabled": true,
+      "sound": true,
+      "sound_volume": 1
+    },
+    "terminal_title": {
+      "enabled": true,
+      "waiting_text": "⚠️ WAITING - Claude needs input",
+      "normal_text": "Claude Code"
+    }
   }
 }
 ```
 
 **Notification options:**
 - `terminal_bell` - Classic `\a` bell (works in most terminals)
-- `system_notification` - Native OS notification (macOS/Linux)
-- `sound` - Play a sound (macOS only, uses system Ping sound)
+- `desktop` - Native OS notification (macOS/Linux) with optional sound
+- `terminal_title` - Changes your terminal window/tab title when waiting
 
 ## Mascot moods
 
 The mascot adapts to your session:
 
-- **Context panic** (>80%): 🫠 melting, 😰 tight fit, 🔥 toasty
-- **Productive** (>200 lines added): 🚀 zooming, ⚡ on fire, 💪 crushing it, 🎯 locked in
-- **Cleanup mode** (more deletions): 🧹 cleaning, ✂️ snip snip, 🗑️ declutter
-- **Chill vibes**: Time-of-day themed (🦉 night owl, ☀️ morning, 🎧 in the zone, 🌆 evening)
+- **Context panic** (>90%): 😰 😱 🆘 - running out of context!
+- **Productive** (>100 lines added): 🔨 ⚒️ 🛠️ - building things
+- **Cleanup mode** (more deletions): 🧹 ✨ 🗑️ - tidying up
+- **Time-based** (default): 🦉 night / ☀️ morning / 💻 afternoon / 🌆 evening
 
-Rotates every ~10 seconds to stay fresh without being distracting.
+**Note:** The mascot changes each time the statusline refreshes. It won't animate continuously, but will show different states based on current conditions.
 
 ## Configuration Editor
 

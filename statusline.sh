@@ -270,6 +270,32 @@ if [ "$SHOW_MASCOT" = "true" ]; then
     }
 
     get_mascot() {
+        # Waiting state (highest priority - from hooks)
+        if [ -f "$STATE_FILE" ]; then
+            WAITING=$(jq -r '.waiting // false' "$STATE_FILE" 2>/dev/null)
+            if [ "$WAITING" = "true" ]; then
+                WAIT_TYPE=$(jq -r '.type // "input"' "$STATE_FILE" 2>/dev/null)
+                # Strip "permission:toolname" to just "permission"
+                WAIT_TYPE_BASE="${WAIT_TYPE%%:*}"
+
+                MASCOT_WAIT_ENABLED=$(cfg_bool '.mascot.waiting.enabled' 'true')
+                if [ "$MASCOT_WAIT_ENABLED" = "true" ]; then
+                    WAIT_COUNT=$(jq -r ".mascot.waiting.$WAIT_TYPE_BASE | length" "$CONFIG_FILE" 2>/dev/null)
+                    WAIT_SPEED=$(cfg '.mascot.waiting.speed' '250')
+                    WAIT_ANIMATE=$(cfg_bool '.mascot.waiting.animate' 'true')
+
+                    if [ -n "$WAIT_COUNT" ] && [ "$WAIT_COUNT" -gt 0 ]; then
+                        IDX=$(get_anim_frame "$WAIT_COUNT" "$WAIT_SPEED" "$WAIT_ANIMATE")
+                        jq -r ".mascot.waiting.${WAIT_TYPE_BASE}[$IDX]" "$CONFIG_FILE" 2>/dev/null
+                        return
+                    fi
+                fi
+                # Fallback for waiting
+                echo "🌳⏳"
+                return
+            fi
+        fi
+
         # Context panic mode
         if [ "$MASCOT_PANIC_ENABLED" = "true" ] && [ "$PERCENT" -gt "$MASCOT_PANIC_THRESHOLD" ]; then
             PANIC_COUNT=$(jq -r '.mascot.context_panic.emojis | length' "$CONFIG_FILE" 2>/dev/null)
@@ -382,5 +408,17 @@ for i in "${!PARTS[@]}"; do
     fi
     OUTPUT+="${PARTS[$i]}"
 done
+
+# === Set Terminal Title ===
+TERMINAL_TITLE_ENABLED=$(cfg_bool '.notifications.terminal_title.enabled' 'false')
+if [ "$TERMINAL_TITLE_ENABLED" = "true" ]; then
+    if [ -n "$WAITING_INFO" ]; then
+        TITLE_TEXT=$(cfg '.notifications.terminal_title.waiting_text' '⚠️ WAITING - Claude needs input')
+    else
+        TITLE_TEXT=$(cfg '.notifications.terminal_title.normal_text' 'Claude Code')
+    fi
+    # Set terminal title (escape sequence) - output to tty if available
+    printf '\033]0;%s\007' "$TITLE_TEXT" > /dev/tty 2>/dev/null || true
+fi
 
 echo -e "$OUTPUT"
