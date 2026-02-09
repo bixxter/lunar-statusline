@@ -4,6 +4,16 @@
 
 set -e
 
+# --- Quiet mode (used by auto-updater) ---
+QUIET=false
+for arg in "$@"; do
+    case "$arg" in
+        --quiet|-q) QUIET=true ;;
+    esac
+done
+
+say() { [ "$QUIET" = false ] && echo "$@" || true; }
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
@@ -11,17 +21,17 @@ SETTINGS_FILE="$CLAUDE_DIR/settings.json"
 
 # --- Dependency check ---
 if ! command -v jq &>/dev/null; then
-    echo "Error: jq is required but not installed."
-    echo ""
-    echo "Install it with:"
-    echo "  macOS:   brew install jq"
-    echo "  Ubuntu:  sudo apt install jq"
-    echo "  Arch:    sudo pacman -S jq"
+    say "Error: jq is required but not installed."
+    say ""
+    say "Install it with:"
+    say "  macOS:   brew install jq"
+    say "  Ubuntu:  sudo apt install jq"
+    say "  Arch:    sudo pacman -S jq"
     exit 1
 fi
 
-echo "Installing Lunar statusline for Claude Code..."
-echo ""
+say "Installing Lunar statusline for Claude Code..."
+say ""
 
 # --- Create directories ---
 mkdir -p "$HOOKS_DIR"
@@ -29,20 +39,21 @@ mkdir -p "$HOOKS_DIR"
 # --- Copy statusline script ---
 cp "$SCRIPT_DIR/statusline.sh" "$CLAUDE_DIR/statusline.sh"
 chmod +x "$CLAUDE_DIR/statusline.sh"
-echo "  Installed statusline.sh to $CLAUDE_DIR/"
+say "  Installed statusline.sh to $CLAUDE_DIR/"
 
 # --- Copy hook scripts ---
 cp "$SCRIPT_DIR/hooks/set-waiting.sh" "$HOOKS_DIR/"
 cp "$SCRIPT_DIR/hooks/clear-waiting.sh" "$HOOKS_DIR/"
-chmod +x "$HOOKS_DIR/set-waiting.sh" "$HOOKS_DIR/clear-waiting.sh"
-echo "  Installed hook scripts to $HOOKS_DIR/"
+cp "$SCRIPT_DIR/hooks/update.sh" "$HOOKS_DIR/"
+chmod +x "$HOOKS_DIR/set-waiting.sh" "$HOOKS_DIR/clear-waiting.sh" "$HOOKS_DIR/update.sh"
+say "  Installed hook scripts to $HOOKS_DIR/"
 
 # --- Read existing settings or start fresh ---
 if [ -f "$SETTINGS_FILE" ]; then
     if ! jq empty "$SETTINGS_FILE" 2>/dev/null; then
-        echo ""
-        echo "Error: $SETTINGS_FILE contains invalid JSON."
-        echo "Please fix it manually and re-run this script."
+        say ""
+        say "Error: $SETTINGS_FILE contains invalid JSON."
+        say "Please fix it manually and re-run this script."
         exit 1
     fi
     SETTINGS=$(cat "$SETTINGS_FILE")
@@ -67,7 +78,7 @@ SETTINGS=$(echo "$SETTINGS" | jq --argjson new_hooks "$NEW_HOOKS" '
       $existing;
       # Remove our old entries (by command path), then append fresh ones
       .[$key] = ([(.[$key] // [])[] | select(
-        (.hooks // []) | map(.command) | any(test("(set-waiting|clear-waiting)\\.sh")) | not
+        (.hooks // []) | map(.command) | any(test("(set-waiting|clear-waiting|update)\\.sh")) | not
       )] + $new_hooks.hooks[$key])
     )
   ) as $merged_hooks |
@@ -77,10 +88,10 @@ SETTINGS=$(echo "$SETTINGS" | jq --argjson new_hooks "$NEW_HOOKS" '
 
 echo "$SETTINGS" | jq '.' > "${SETTINGS_FILE}.tmp"
 mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE"
-echo "  Updated $SETTINGS_FILE"
+say "  Updated $SETTINGS_FILE"
 
-echo ""
-echo "Done! Restart Claude Code to activate the statusline."
-echo ""
-echo "To customize notifications and display, edit:"
-echo "  ~/.claude/.statusline.config"
+say ""
+say "Done! Restart Claude Code to activate the statusline."
+say ""
+say "To customize notifications and display, edit:"
+say "  ~/.claude/.statusline.config"

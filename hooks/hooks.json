@@ -49,6 +49,14 @@
             "command": "~/.claude/hooks/clear-waiting.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/update.sh"
+          }
+        ]
       }
     ]
   }
