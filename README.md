@@ -48,6 +48,31 @@ This will:
 
 Running the installer again is safe — it will update hooks without creating duplicates.
 
+### Updating
+
+Lunar auto-updates itself. Each time you start a Claude Code session, it checks for updates in the background (at most once per 24 hours). If a new version is available, it pulls and re-installs silently.
+
+**Already installed?** Run one last manual update to enable auto-updates:
+
+```bash
+cd ~/.claude/claude-statusline
+git pull && ./install-hooks.sh
+```
+
+After that, you'll never need to update manually again.
+
+**Opt out** by adding to `~/.claude/.statusline.config`:
+
+```json
+{
+  "auto_update": {
+    "enabled": false
+  }
+}
+```
+
+You can also change the check frequency with `"check_interval_hours": 48` (default: 24).
+
 ### Manual Install
 
 1. Copy `statusline.sh` to your Claude config directory:
@@ -59,8 +84,8 @@ chmod +x ~/.claude/statusline.sh
 2. Copy hook scripts:
 ```bash
 mkdir -p ~/.claude/hooks
-cp hooks/set-waiting.sh hooks/clear-waiting.sh ~/.claude/hooks/
-chmod +x ~/.claude/hooks/set-waiting.sh ~/.claude/hooks/clear-waiting.sh
+cp hooks/set-waiting.sh hooks/clear-waiting.sh hooks/update.sh ~/.claude/hooks/
+chmod +x ~/.claude/hooks/set-waiting.sh ~/.claude/hooks/clear-waiting.sh ~/.claude/hooks/update.sh
 ```
 
 3. Add to your `~/.claude/settings.json`:
@@ -88,7 +113,8 @@ chmod +x ~/.claude/hooks/set-waiting.sh ~/.claude/hooks/clear-waiting.sh
       { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] }
     ],
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] }
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/clear-waiting.sh" }] },
+      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/update.sh" }] }
     ]
   }
 }
