@@ -36,7 +36,7 @@ A reactive, visual status line for Claude Code that shows what matters.
 ### Quick Install
 
 ```bash
-git clone https://github.com/anthropics/claude-statusline.git ~/.claude/claude-statusline
+git clone https://github.com/bixxter/lunar-statusline.git ~/.claude/claude-statusline
 cd ~/.claude/claude-statusline
 ./install-hooks.sh
 ```
